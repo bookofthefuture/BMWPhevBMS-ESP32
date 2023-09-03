@@ -101,4 +101,6 @@ typedef struct {
   int chargerCanIndex;
   int veCanIndex;
   int secondBatteryCanIndex;
+  int rapidchargecurrentmax;
+
 } EEPROMSettings;

@@ -1,19 +1,26 @@
 #pragma once
-#include <ACAN.h>
+#include <ACAN_ESP32.h>
 #include <ACAN2515.h>
 #include <SPI.h>
 #define DEFAULT_CAN_INTERFACE_INDEX 0
 
 
+#define MCP2515_CS 5// CS input of MCP2515
+#define MCP2515_INT 27 // INT output of MCP2515
+#define MCP2515_SCK 18
+#define MCP2515_QUARTZ_FREQUENCY 16000000
+#define MCP2515_MISO 19
+#define MCP2515_MOSI 23
+#define CAN_BAUD 500000
 
-static const byte MCP2515_SCK = 14 ; // SCK input of MCP2515
-static const byte MCP2515_SI  = 7 ; // SI input of MCP2515
-static const byte MCP2515_SO  = 8 ; // SO output of MCP2515
-static const byte MCP2515_CS  = 15 ; // CS input of MCP2515
-static const byte MCP2515_INT = 2 ; // INT output of MCP2515
-static const byte MCP2515_CS_2  = 20 ; // CS input of MCP2515
-static const byte MCP2515_INT_2 = 16 ; // INT output of MCP2515
-
+//static const byte MCP2515_SCK = 14 ; // SCK input of MCP2515
+//static const byte MCP2515_SI  = 7 ; // SI input of MCP2515
+//static const byte MCP2515_SO  = 8 ; // SO output of MCP2515
+//static const byte MCP2515_CS  = 15 ; // CS input of MCP2515
+//static const byte MCP2515_INT = 2 ; // INT output of MCP2515
+//static const byte MCP2515_CS_2  = 20 ; // CS input of MCP2515
+//static const byte MCP2515_INT_2 = 16 ; // INT output of MCP2515
+//
 
 typedef struct BMS_CAN_MESSAGE {
     uint32_t id;
@@ -36,7 +43,7 @@ class BMSCan
      void begin(uint32_t baud, int interfaceIndex);
      uint32_t available (int interfaceIndex);
      int read (BMS_CAN_MESSAGE &msg, int interfaceIndex);
-     ACAN2515* can2;
+     ACAN2515* can1;
   private:
      CANMessage convert(const BMS_CAN_MESSAGE &msg);
      BMS_CAN_MESSAGE convert(const CANMessage &msg);

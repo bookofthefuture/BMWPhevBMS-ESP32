@@ -3,6 +3,8 @@
 #include "BMSModule.h"
 //#include <FlexCAN.h>
 #include "BMSCan.h"
+#include <ArduinoJson.h>
+
 
 class BMSModuleManager
 {
@@ -29,7 +31,6 @@ public:
     void setOverVolt(float newVal);
     void setOverTemp(float newVal);
     void setBalanceV(float newVal);
-    void setBalanceHyst(float newVal);
     void setSensors(int sensor,float Ignore, int tempoff);
     float getPackVoltage();
     float getAvgTemperature();
@@ -46,6 +47,7 @@ public:
     void printAllCSV(unsigned long timestamp,float current, int SOC);
     void printPackSummary();
     void printPackDetails(int digits,int CSCvariant);
+    void printPackDetailsJson(DynamicJsonDocument &root);
 int getNumModules();
 
 

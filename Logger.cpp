@@ -148,7 +148,7 @@ boolean Logger::isDebug() {
 */
 void Logger::log(LogLevel level, char *format, va_list args) {
   lastLogTime = millis();
-  SERIALCONSOLE.print(lastLogTime);
+   SERIALCONSOLE.print(lastLogTime);
   SERIALCONSOLE.print(" - ");
 
   switch (level) {

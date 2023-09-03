@@ -318,6 +318,45 @@ float BMSModuleManager::getAvgCellVolt()
   return avg;
 }
 
+void BMSModuleManager::printPackDetailsJson(DynamicJsonDocument &root)
+{
+  uint8_t faults;
+  uint8_t alerts;
+  uint8_t COV;
+  uint8_t CUV;
+  int cellNum = 0;
+
+  JsonArray modulesNode = root.createNestedArray("modules");
+  for (int y = 1; y < 63; y++)
+  {
+    if (modules[y].isExisting())
+    {
+      JsonObject moduleNode = modulesNode.createNestedObject();
+      moduleNode["module"] = y;
+      moduleNode["total_voltage"] = modules[y].getModuleVoltage();
+      moduleNode["lowest_voltage"] =  modules[y].getLowCellV();
+      moduleNode["highest_voltage"] =  modules[y].getHighCellV();
+      moduleNode["average_voltage"] =  modules[y].getAverageV();
+      moduleNode["temperature1"] =  modules[y].getTemperature(0);
+      moduleNode["temperature2"] =  modules[y].getTemperature(1);
+      moduleNode["temperature3"] =  modules[y].getTemperature(2);
+      moduleNode["balance_status"] = modules[y].getbalstat();
+      JsonArray cellsNode = moduleNode.createNestedArray("cells");
+      faults = modules[y].getFaults();
+      alerts = modules[y].getAlerts();
+      COV = modules[y].getCOVCells();
+      CUV = modules[y].getCUVCells();
+      
+      for (int i = 0; i < 13; i++)
+      {
+        JsonObject cellNode = cellsNode.createNestedObject();
+        cellNode["cell"] = cellNum++;
+        cellNode["voltage"] = modules[y].getCellVoltage(i);
+      }
+    }
+  }
+
+}
 void BMSModuleManager::printPackSummary()
 {
   uint8_t faults;
