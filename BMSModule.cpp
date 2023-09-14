@@ -1,4 +1,4 @@
-#include "config.h"
+#include "CONFIG.h"
 #include "BMSModule.h"
 #include "BMSUtil.h"
 #include "Logger.h"
