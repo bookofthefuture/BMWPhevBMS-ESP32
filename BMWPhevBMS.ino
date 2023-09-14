@@ -49,7 +49,7 @@ This version of SimpBMS has been modified as the Space Balls edition utilising t
 
 #include "BMSModuleManager.h"
 #include <Arduino.h>
-#include "config.h"
+#include "CONFIG.h"
 #include "SerialConsole.h"
 #include "Logger.h"
 #include <EEPROM.h>
@@ -370,6 +370,10 @@ uint32_t lastUpdate;
 
 void setup()
 {
+  
+  Serial.begin(115200);
+  Serial.println("Starting up!");
+  Serial.println("SimpBMS V2 BMW");
   delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
 
   pinMode(AC_PRESENT, INPUT);

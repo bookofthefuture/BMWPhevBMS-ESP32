@@ -28,7 +28,7 @@
 #define LOGGER_H_
 
 #include <Arduino.h>
-#include "config.h"
+#include "CONFIG.h"
 
 class Logger {
 public:
