@@ -587,7 +587,7 @@ void loop()
 
     if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint)
       {
-        if (UnderTime > millis()) //check is last time not undervoltage is longer thatn UnderDur ago
+        if (UnderTime < millis()) //check is last time not undervoltage is longer thatn UnderDur ago
         {
           bmsstatus = Error;
           ErrorReason = ErrorReason | 0x02;
@@ -1100,7 +1100,6 @@ void menu()
         break;
 
       case 113: //q for quite menu
-
         menuload = 0;
         incomingByte = 115;
         break;
@@ -1424,6 +1423,7 @@ void menu()
           menuload = 1;
           incomingByte = 'b';
         }
+        break;
 
       case 'h':
         if (Serial.available() > 0)
@@ -1433,6 +1433,7 @@ void menu()
           menuload = 1;
           incomingByte = 'b';
         }
+        break;
 
       case 'b':
         if (Serial.available() > 0)
@@ -1949,7 +1950,7 @@ void menu()
     }
   }
 
-  if (incomingByte == 115 & menuload == 0)
+  if (incomingByte == 115 && menuload == 0)
   {
     SERIALCONSOLE.println();
     SERIALCONSOLE.println("MENU");
