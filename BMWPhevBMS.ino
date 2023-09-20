@@ -76,11 +76,10 @@ BMSWebServer bmsWebServer(settings, bms);
 /////Version Identifier/////////
 int firmver = 220225;
 
-
-
 //Simple BMS V2 wiring//
+
 const int AC_PRESENT = 34; // input 1 - high active //AC Present
-const int OUT_FAN = 32;// output 1 - high active //repurpose for fan
+const int INVERTER_START = 32;// output 1 - high active //repurpose for fan
 const int led = 2;
 const int BMBfault = 11;
 
@@ -254,9 +253,9 @@ static void receivedFiltered (const CANMessage & inMsg) {
     } else if(inMsg.id == 0x528) {
         long wh = inMsg.data[2] + (inMsg.data[3] << 8) + (inMsg.data[4] << 16) + (inMsg.data[5] << 24);
         kilowatthours = wh/1000.0f;
-    } else if (inMsg.id == 0x02) {
+    } else if (inMsg.id == 0x377) {
       inverterLastRec = millis();
-      inverterStatus = inMsg.data[0];
+      inverterStatus = inMsg.data[7];
     }
     //canio
     else if (inMsg.id == 0x01) {
@@ -283,7 +282,7 @@ bool chargeEnabled() {
 
 bool inverterControlledContactorsStatus() {
   // if inverter in RUN mode
-  if (inverterStatus == 0x01) {
+  if (inverterStatus == 0x22) {
     return true;
   }
 
@@ -377,8 +376,8 @@ void setup()
   delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
 
   pinMode(AC_PRESENT, INPUT);
-  pinMode(OUT_FAN, OUTPUT); // fan relay
-  digitalWrite(OUT_FAN, LOW);
+  pinMode(INVERTER_START, OUTPUT); // fan relay
+  digitalWrite(INVERTER_START, LOW);
   pinMode(led, OUTPUT);
 
 
@@ -407,7 +406,7 @@ void setup()
   const ACAN2515Mask rxm0 = standard2515Mask(0x7FF, 0, 0) ; // For filter #0 and #1
   const ACAN2515Mask rxm1 = standard2515Mask(0x7F0, 0, 0) ; // For filter #2 to #
   const ACAN2515AcceptanceFilter filters [] = {
-    {standard2515Filter(0x02, 0, 0), receivedFiltered},
+    {standard2515Filter(0x377, 0, 0), receivedFiltered},
     {standard2515Filter(0x01, 0, 0), receivedFiltered},
     {standard2515Filter(0x520, 0, 0), receivedFiltered},
     {standard2515Filter(0x380, 0, 0), receivedFiltered},
@@ -438,6 +437,7 @@ void setup()
   Serial.println(WiFi.localIP());
 
   bmsWebServer.setup();
+  crc8.begin();
 
 
   digitalWrite(led, HIGH);
@@ -513,6 +513,9 @@ void loop()
 
     case (Precharge):
       Discharge = 0;
+      if(digitalRead(AC_PRESENT) == HIGH) {
+        digitalWrite(INVERTER_START, HIGH);
+      }
       if (!rapidCharging && inverterControlledContactorsStatus() && chargeEnabled()) {
          bmsstatus = Charge;
       }
@@ -540,7 +543,6 @@ void loop()
 
     case (Charge):
       Discharge = 0;
-      digitalWrite(OUT_FAN, HIGH);//enable fan
       if (bms.getHighCellVolt() > settings.balanceVoltage)
       {
         balancecells = 1;
@@ -573,7 +575,6 @@ void loop()
       }
       break;
     case (RapidCharge):
-      digitalWrite(OUT_FAN, LOW);//disable fan
       break;
     case (Error):
       Discharge = 0;
@@ -797,7 +798,7 @@ void printbmsstat()
   SERIALCONSOLE.print(cellspresent);
   SERIALCONSOLE.println();
   SERIALCONSOLE.print("Out:");
-  SERIALCONSOLE.print(digitalRead(OUT_FAN));
+  SERIALCONSOLE.print(digitalRead(INVERTER_START));
   //SERIALCONSOLE.print(digitalRead(OUT3));
   //SERIALCONSOLE.print(digitalRead(OUT4));
 
@@ -1973,8 +1974,10 @@ void menu()
 void canread(int canInterfaceOffset, int idOffset)
 {
   while(bmscan.read(inMsg, canInterfaceOffset)) {
-  
-    if (inMsg.id > 0x99 && inMsg.id < 0x180)//do BMS magic if ids are ones identified to be modules
+    
+    //Serial.print("ID: ");
+    //Serial.println(inMsg.id, HEX);
+    if (inMsg.id > 0x99 && inMsg.id < 0x180)//do BMS mag nic if ids are ones identified to be modules
     {
       if (candebug == 1 && debug == 1)
       {

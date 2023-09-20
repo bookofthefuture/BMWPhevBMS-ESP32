@@ -109,6 +109,7 @@ void BMSModuleManager::decodecan(BMS_CAN_MESSAGE &msg, int debug)
 {
   int Id = (msg.id & 0x0F0);
   int CMU = (msg.id & 0x00F) + 1;
+
   /*
     if (msg.id == 0x100)
     {
