@@ -78,8 +78,8 @@ int firmver = 220225;
 
 //Simple BMS V2 wiring//
 
-const int AC_PRESENT = 34; // input 1 - high active //AC Present
-const int INVERTER_START = 32;// output 1 - high active //repurpose for fan
+const int AC_PRESENT = 36; // input 1 - high active //AC Present
+const int INVERTER_START = 32;// output 1 - high active
 const int led = 2;
 const int BMBfault = 11;
 
@@ -373,7 +373,8 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting up!");
   Serial.println("SimpBMS V2 BMW");
-  delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
+  // Note increased delay below to allow BMW modules to wake up - getting module errors and need to reset frequently 
+  delay(10000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
 
   pinMode(AC_PRESENT, INPUT);
   pinMode(INVERTER_START, OUTPUT); // fan relay
