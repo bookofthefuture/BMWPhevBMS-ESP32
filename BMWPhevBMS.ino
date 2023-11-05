@@ -49,7 +49,7 @@ This version of SimpBMS has been modified as the Space Balls edition utilising t
 
 #include "BMSModuleManager.h"
 #include <Arduino.h>
-#include "CONFIG.h"
+#include "config.h"
 #include "SerialConsole.h"
 #include "Logger.h"
 #include <EEPROM.h>
@@ -336,7 +336,7 @@ void loadSettings()
   settings.veCanIndex = DEFAULT_CAN_INTERFACE_INDEX; //default to can0
   settings.secondBatteryCanIndex = DEFAULT_CAN_INTERFACE_INDEX; //default to can0, effectivly no second pack
   settings.curcan = IsaScale;																   
-  settings.voltsoc = 0; //SOC purely voltage based - default to 0, set to 1 for shunt-based SoC - note, not referenced in menu atm
+  settings.voltsoc = 0; //SOC purely voltage based
   settings.Pretime = 5000; //ms of precharge time
   settings.conthold = 50; //holding duty cycle for contactor 0-255
   settings.Precurrent = 1000; //ma before closing main contator
@@ -374,7 +374,7 @@ void setup()
   Serial.println("Starting up!");
   Serial.println("SimpBMS V2 BMW");
   // Note increased delay below to allow BMW modules to wake up - getting module errors and need to reset frequently 
-  delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
+  delay(10000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
 
   pinMode(AC_PRESENT, INPUT);
   pinMode(INVERTER_START, OUTPUT); // fan relay
@@ -844,14 +844,9 @@ void getcurrent()
 
 void updateSOC()
 {
-  if(settings.voltsoc == 1){
-    //current shunt based SOC
-    SOC = (((settings.CAP) - amphours) / (settings.CAP) ) * 100;
-    SOCset = 1;
-  } else {
-      // default to voltage-based SoC
-      SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
-  }
+  //current shunt based SOC
+  SOC = (((settings.CAP) - amphours) / (settings.CAP) ) * 100;
+  SOCset = 1;
 }
 
 void SOCcharged(int y)

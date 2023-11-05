@@ -3,7 +3,7 @@
 #include "ESPAsyncWebServer.h"
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
-#include "CONFIG.h"
+#include "config.h"
 #include "BMSModuleManager.h"
 
 class BMSWebServer
