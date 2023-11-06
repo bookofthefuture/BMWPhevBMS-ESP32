@@ -844,9 +844,14 @@ void getcurrent()
 
 void updateSOC()
 {
-  //current shunt based SOC
-  SOC = (((settings.CAP) - amphours) / (settings.CAP) ) * 100;
-  SOCset = 1;
+  if(settings.voltsoc == 1){
+    //current shunt based SOC
+    SOC = (((settings.CAP) - amphours) / (settings.CAP) ) * 100;
+    SOCset = 1;
+  } else {
+      // default to voltage-based SoC
+      SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+  }
 }
 
 void SOCcharged(int y)
@@ -856,7 +861,7 @@ void SOCcharged(int y)
     SOC = 95;
     ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
   }
-  if (y == 2)
+  if (y == 2)   
   {
     SOC = 100;
     ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778 ; //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
