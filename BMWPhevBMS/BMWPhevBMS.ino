@@ -118,6 +118,10 @@ byte outlander_charger_reported_status = 0;
 byte evse_duty = 0;
 bool secondPackFound = false;
 
+// Counter for cylcing cell count as hack for module comms issue
+int countcheck = 0;
+int countcheckcycles = 3;
+
 //CSC Variants
 #define BmwI3 0
 #define MiniE 1
@@ -373,8 +377,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting up!");
   Serial.println("SimpBMS V2 BMW");
-  // Note increased delay below to allow BMW modules to wake up - getting module errors and need to reset frequently 
-  delay(10000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
+  delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
 
   pinMode(AC_PRESENT, INPUT);
   pinMode(INVERTER_START, OUTPUT); // fan relay
@@ -675,9 +678,16 @@ void loop()
         SERIALCONSOLE.println("  ");
         SERIALCONSOLE.print("   !!! MODULE MISSING !!!");
         SERIALCONSOLE.println("  ");
+        
       }
-      bmsstatus = Error;
-      ErrorReason = 4;
+      if (countcheck < countcheckcycles) {
+        cellspresent = bms.seriescells();
+        bmsstatus = Boot;
+        countcheck++;
+      } else {
+        bmsstatus = Error;
+        ErrorReason = 4;
+      }
     }
     cleartime = millis();
   }
