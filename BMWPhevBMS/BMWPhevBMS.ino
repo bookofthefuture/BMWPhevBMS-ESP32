@@ -120,7 +120,7 @@ bool secondPackFound = false;
 
 // Counter for cylcing cell count as hack for module comms issue
 int countcheck = 0;
-int countcheckcycles = 3;
+int countcheckcycles = 5;
 
 //CSC Variants
 #define BmwI3 0
@@ -618,6 +618,17 @@ void loop()
     {
       if (cellspresent != bms.seriescells() || cellspresent != (settings.Scells * settings.Pstrings)) //detect a fault in cells detected
       {
+        if (countcheck < countcheckcycles) {
+        delay(500);
+        cellspresent = bms.seriescells();
+        bmsstatus = Boot;
+        countcheck++;
+        if (debug != 0)
+        {
+          Serial.print("Countcheck. Cells Present = ");
+          Serial.println(cellspresent);
+        }
+        } else {
         if (debug != 0)
         {
           SERIALCONSOLE.println("  ");
@@ -626,6 +637,7 @@ void loop()
         }
         bmsstatus = Error;
         ErrorReason = 3;
+        }
       }
     }
 
@@ -681,9 +693,14 @@ void loop()
         
       }
       if (countcheck < countcheckcycles) {
+        delay(500);
         cellspresent = bms.seriescells();
         bmsstatus = Boot;
         countcheck++;
+        if (debug != 0) {
+          Serial.print("Countcheck. Cells Present = ");
+          Serial.println(cellspresent);
+        }
       } else {
         bmsstatus = Error;
         ErrorReason = 4;
