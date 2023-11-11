@@ -619,7 +619,7 @@ void loop()
       if (cellspresent != bms.seriescells() || cellspresent != (settings.Scells * settings.Pstrings)) //detect a fault in cells detected
       {
         if (countcheck < countcheckcycles) {
-        delay(500);
+        delay(1000);
         cellspresent = bms.seriescells();
         bmsstatus = Boot;
         countcheck++;
@@ -693,7 +693,7 @@ void loop()
         
       }
       if (countcheck < countcheckcycles) {
-        delay(500);
+        delay(1000);
         cellspresent = bms.seriescells();
         bmsstatus = Boot;
         countcheck++;
