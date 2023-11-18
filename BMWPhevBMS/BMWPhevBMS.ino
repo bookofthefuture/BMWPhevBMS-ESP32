@@ -2195,7 +2195,7 @@ void sendcommand()
 {
 
   ///////module id cycling/////////
-
+for (int mG = 0; mG < 3; mG++) { //change this to increase or decrease burst sending of module requests.
   if (nextmes == 6) {
     mescycle++;
     nextmes = 0;
@@ -2262,6 +2262,7 @@ void sendcommand()
   if (bms.checkstatus() == true) {
     resetbalancedebug();
   }
+}
 }
 
 void resetwdog()
