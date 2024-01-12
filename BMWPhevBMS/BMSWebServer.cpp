@@ -1,5 +1,6 @@
 #include "BMSWebServer.h"
 #include "SPIFFS.h"
+#include <EEPROM.h>
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -124,38 +125,65 @@ void BMSWebServer::setup()
     request->send(response);
   });
 //
-//  server.on("/config", HTTP_GET, [&] (AsyncWebServerRequest * request) {
-//    AsyncResponseStream *response = request->beginResponseStream("application/json");
-//    DynamicJsonDocument json(2048);
-//
-//    config.toJson(settings, json);
-//    serializeJson(json, *response);
-//    request->send(response);
-//  });
+  server.on("/config", HTTP_GET, [&] (AsyncWebServerRequest * request) {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument json(2048);
+    json["capacity"] = settings.CAP;
+    json["seriesCells"] = settings.Scells;
+    json["parallelCells"] = settings.Pstrings ;
+    json["overVSetpoint"] = settings.OverVSetpoint * 1000;
+    json["underVSetpoint"] = settings.UnderVSetpoint * 1000;
+    json["chargeVsetpoint"] = settings.ChargeVsetpoint * 1000;
+    json["dischVsetpoint"] = settings.DischVsetpoint * 1000;
+    json["overTSetpoint"] = settings.OverTSetpoint;
+    json["underTSetpoint"] = settings.UnderTSetpoint;
+    json["chargeTSetpoint"] = settings.ChargeTSetpoint;
+    json["disTSetpoint"] = settings.DisTSetpoint;
+    json["balanceVoltage"] = settings.balanceVoltage * 1000;
+    json["balanceHyst"] = settings.balanceHyst * 1000;
+    json["carCanIndex"] = settings.veCanIndex;
+    json["chargecurrentmax"] = settings.chargecurrentmax;
+    serializeJson(json, *response);
+    request->send(response);
+  });
 
-//  server.on(
-//    "/config",
-//    HTTP_POST,
-//  [](AsyncWebServerRequest * request) {},
-//  NULL,
-//  [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
-//    Serial.println("Config POST");
-//    const size_t JSON_DOC_SIZE = 1024U;
-//    DynamicJsonDocument jsonDoc(JSON_DOC_SIZE);
-//
-//    if (DeserializationError::Ok == deserializeJson(jsonDoc, (const char*)data))
-//    {
-//      JsonObject obj = jsonDoc.as<JsonObject>();
-//      config.fromJson(settings, obj);
-//      Serial.print("Settings: ");
-//      Serial.println(settings.acDetectionMethod);
-//      config.save(settings);
-//      request->send(200, "application/json", "success");
-//
-//    } else {
-//      request->send(200, "application/json", "DeserializationError");
-//    }
-//  });
+
+  server.on(
+    "/config",
+    HTTP_POST,
+  [](AsyncWebServerRequest * request) {},
+  NULL,
+  [&](AsyncWebServerRequest * request, uint8_t *data, size_t len, size_t index, size_t total) {
+    Serial.println("Config POST");
+    const size_t JSON_DOC_SIZE = 1024U;
+    DynamicJsonDocument jsonDoc(JSON_DOC_SIZE);
+
+    if (DeserializationError::Ok == deserializeJson(jsonDoc, (const char*)data))
+    {
+      JsonObject json = jsonDoc.as<JsonObject>();
+      settings.CAP = json["capacity"];
+      settings.Scells= json["seriesCells"];
+      settings.Pstrings = json["parallelCells"];
+      settings.OverVSetpoint = ((float)json["overVSetpoint"] / 1000);
+      settings.UnderVSetpoint = ((float)json["underVSetpoint"]/ 1000);
+      settings.ChargeVsetpoint = ((float)json["chargeVsetpoint"]/ 1000);
+      settings.DischVsetpoint = ((float)json["dischVsetpoint"]/ 1000);
+      settings.OverTSetpoint = json["overTSetpoint"];
+      settings.UnderTSetpoint = json["underTSetpoint"];
+      settings.ChargeTSetpoint = json["chargeTSetpoint"];
+      settings.DisTSetpoint = json["disTSetpoint"];
+      settings.balanceVoltage = ((float)json["balanceVoltage"])/ 1000;
+      settings.balanceHyst = ((float)json["balanceHyst"])/ 1000;
+      settings.veCanIndex = json["carCanIndex"];
+      settings.chargecurrentmax = json["chargecurrentmax"];
+      EEPROM.put(0, settings); //save all change to eeprom
+      EEPROM.commit();
+      request->send(200, "application/json", "success");
+
+    } else {
+      request->send(200, "application/json", "DeserializationError");
+    }
+  });
 
 
     server.on("/cmd", HTTP_POST, [](AsyncWebServerRequest *request){
