@@ -78,7 +78,7 @@ int firmver = 220225;
 
 //Simple BMS V2 wiring//
 
-const int AC_PRESENT = 36; // input 1 - high active //AC Present
+const int AC_PRESENT = 34; // input 1 - high active //AC Present
 const int INVERTER_START = 32;// output 1 - high active
 const int led = 2;
 const int BMBfault = 11;
@@ -281,7 +281,8 @@ static void receivedFiltered (const CANMessage & inMsg) {
 }
 
 bool chargeEnabled() {
-  return digitalRead(AC_PRESENT) == HIGH || chargeOverride == 1;
+  return digitalRead(AC_PRESENT) == LOW || chargeOverride == 1;
+  //Serial.println("AC Present");
 }
 
 bool inverterControlledContactorsStatus() {
@@ -330,9 +331,9 @@ void loadSettings()
   settings.chargecurrentmax = 300; //max charge current in 0.1A
   settings.rapidchargecurrentmax = 1200;
   settings.chargecurrentend = 50; //end charge current in 0.1A
-  settings.socvolt[0] = 3100; //Voltage and SOC curve for voltage based SOC calc
+  settings.socvolt[0] = 3200; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[1] = 10; //Voltage and SOC curve for voltage based SOC calc
-  settings.socvolt[2] = 4100; //Voltage and SOC curve for voltage based SOC calc
+  settings.socvolt[2] = 4000; //Voltage and SOC curve for voltage based SOC calc
   settings.socvolt[3] = 90; //Voltage and SOC curve for voltage based SOC calc
   settings.invertcur = 0; //Invert current sensor direction
   settings.cursens = 2;
@@ -517,10 +518,10 @@ void loop()
 
     case (Precharge):
       Discharge = 0;
-      if(digitalRead(AC_PRESENT) == HIGH) {
+      if(digitalRead(AC_PRESENT) == LOW) {
         digitalWrite(INVERTER_START, HIGH);
       }
-      if (!rapidCharging && inverterControlledContactorsStatus() && chargeEnabled()) {
+      if (!rapidCharging && inverterControlledContactorsStatus() &&  ()) {
          bmsstatus = Charge;
       }
       if (!rapidCharging &&inverterControlledContactorsStatus() && inverterInDrive) {
@@ -871,13 +872,13 @@ void getcurrent()
 
 void updateSOC()
 {
-  if(settings.voltsoc == 1){
-    //current shunt based SOC
-    SOC = (((settings.CAP) - amphours) / (settings.CAP) ) * 100;
-    SOCset = 1;
-  } else {
+//  if(settings.voltsoc == 1){
+//    //current shunt based SOC
+//    SOC = (((settings.CAP) - amphours) / (settings.CAP) ) * 100;
+//    SOCset = 1;
+//  } else {
       // default to voltage-based SoC
-      SOC = map(uint16_t(bms.getLowCellVolt() * 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+      SOC = map(uint16_t(((bms.getLowCellVolt() + bms.getHighCellVolt)/2)* 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
   }
 }
 
@@ -1964,7 +1965,7 @@ void menu()
         switch (settings.secondBatteryCanIndex)
         {
           case 0:
-            SERIALCONSOLE.print("No seconary Battery Pack");
+            SERIALCONSOLE.print("No secondary Battery Pack");
             break;
           case 1:
             SERIALCONSOLE.print("Can1");
@@ -2463,5 +2464,6 @@ int pgnFromCANId(int canId)
     return canId; // not sure if this is really right?
   }
 }
+
 
 ////////END///////////
