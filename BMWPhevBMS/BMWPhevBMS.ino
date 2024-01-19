@@ -73,6 +73,16 @@ SerialConsole console;
 EEPROMSettings settings;
 BMSWebServer bmsWebServer(settings, bms);
 
+void canread(int canInterfaceOffset, int idOffset);
+void menu();
+void SOCcharged(int y);
+void resetISACounters();
+void chargercomms();
+void sendcommand();
+void assignID();
+void currentlimit();
+void resetwdog();
+void VEcan();
 /////Version Identifier/////////
 int firmver = 220225;
 
@@ -521,7 +531,7 @@ void loop()
       if(digitalRead(AC_PRESENT) == LOW) {
         digitalWrite(INVERTER_START, HIGH);
       }
-      if (!rapidCharging && inverterControlledContactorsStatus() &&  ()) {
+      if (!rapidCharging && inverterControlledContactorsStatus() && chargeEnabled()) {
          bmsstatus = Charge;
       }
       if (!rapidCharging &&inverterControlledContactorsStatus() && inverterInDrive) {
@@ -878,8 +888,8 @@ void updateSOC()
 //    SOCset = 1;
 //  } else {
       // default to voltage-based SoC
-      SOC = map(uint16_t(((bms.getLowCellVolt() + bms.getHighCellVolt)/2)* 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
-  }
+      SOC = map(uint16_t(((bms.getLowCellVolt() + bms.getHighCellVolt())/2)* 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+  //}
 }
 
 void SOCcharged(int y)
