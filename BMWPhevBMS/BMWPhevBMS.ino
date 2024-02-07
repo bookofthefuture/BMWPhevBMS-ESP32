@@ -455,7 +455,7 @@ void setup()
 
 void loop()
 {
-
+//  printbmsstat();
   canread(DEFAULT_CAN_INTERFACE_INDEX, 0);
   
   bmscan.can1->dispatchReceivedMessage () ;
@@ -521,7 +521,7 @@ void loop()
       if(digitalRead(AC_PRESENT) == LOW) {
         digitalWrite(INVERTER_START, HIGH);
       }
-      if (!rapidCharging && inverterControlledContactorsStatus() &&  ()) {
+      if (!rapidCharging && inverterControlledContactorsStatus() && chargeEnabled()) {
          bmsstatus = Charge;
       }
       if (!rapidCharging &&inverterControlledContactorsStatus() && inverterInDrive) {
@@ -787,6 +787,7 @@ void printbmsstat()
 
     case (Ready):
       SERIALCONSOLE.print(" Ready ");
+      SERIALCONSOLE.println();        
       break;
 
     case (Precharge):
@@ -878,8 +879,8 @@ void updateSOC()
 //    SOCset = 1;
 //  } else {
       // default to voltage-based SoC
-      SOC = map(uint16_t(((bms.getLowCellVolt() + bms.getHighCellVolt)/2)* 1000), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
-  }
+      SOC = map((uint16_t(((bms.getLowCellVolt() + bms.getHighCellVolt())/2)* 1000)), settings.socvolt[0], settings.socvolt[2], settings.socvolt[1], settings.socvolt[3]);
+//  }
 }
 
 void SOCcharged(int y)
