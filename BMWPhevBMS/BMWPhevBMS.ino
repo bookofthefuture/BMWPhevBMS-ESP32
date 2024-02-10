@@ -43,9 +43,7 @@
 ╚══════╝╚═════╝░╚═╝░░░╚═╝░░░╚═╝░╚════╝░╚═╝░░╚══╝
 
 
-This version of SimpBMS has been modified as the Space Balls edition utilising the Teensey 3.6, alowingfor upto 4 Canbus' 
-  2 Native(Flexcans) + 2 MCP2515/SPI Cans									 
-*/
+This version of SimpBMS has been modified as the Space Balls edition utilising the ESP32 for the BMW PHEV modules */
 
 #include "BMSModuleManager.h"
 #include <Arduino.h>
@@ -305,7 +303,7 @@ void loadSettings()
   settings.OverVSetpoint = 4.2f;
   settings.UnderVSetpoint = 3.0f;
   settings.ChargeVsetpoint = 4.1f;
-  settings.ChargeHys = 0.2f; // voltage drop required for charger to kick back on
+  settings.ChargeHys = 0.05f; // voltage drop required for charger to kick back on
   settings.WarnOff = 0.1f; //voltage offset to raise a warning
   settings.DischVsetpoint = 3.2f;
   settings.DischHys = 0.2f; // Discharge voltage offset
@@ -469,7 +467,10 @@ void loop()
   {
     case (Boot):
       Discharge = 0;
-      bmsstatus = Ready;
+      cellspresent = bms.seriescells();
+      if (cellspresent == (settings.Scells * settings.Pstrings)) {
+        bmsstatus = Ready;
+      }
       break;
 
     case (Ready):
@@ -482,6 +483,17 @@ void loop()
       {
         balancecells = 0;
       }
+      if (debug != 0) {
+        SERIALCONSOLE.print("Charge Enabled: ");
+        SERIALCONSOLE.println(chargeEnabled());
+        SERIALCONSOLE.print("High Cell Volt: ");
+        SERIALCONSOLE.println(bms.getHighCellVolt());
+        SERIALCONSOLE.print("Charge Set Point: ");
+        SERIALCONSOLE.println(settings.ChargeVsetpoint);
+        SERIALCONSOLE.print("Charge Hysteresis: ");
+        SERIALCONSOLE.println(settings.ChargeHys);
+      }
+
       if (chargeEnabled() && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys))) //detect AC present for charging and check not balancing
       {
         if (inverterControlledContactorsStatus())
@@ -610,35 +622,19 @@ void loop()
     VEcan();
     sendcommand();
     
-    if (cellspresent == 0 && millis() > 3000)
-    {
-      cellspresent = bms.seriescells();//set amount of connected cells, might need delay
+    if (cellspresent == 0 && millis() > 3000) {
+      cellspresent = bms.seriescells();  //set amount of connected cells, might need delay
       bms.setSensors(settings.IgnoreTemp, settings.IgnoreVolt, settings.TempOff);
-    }
-    else
-    {
-      if (cellspresent != bms.seriescells() || cellspresent != (settings.Scells * settings.Pstrings)) //detect a fault in cells detected
+    } else {
+      if (bmsstatus != Boot && cellspresent != bms.seriescells())  //detect a fault in cells detected
       {
-        if (countcheck < countcheckcycles) {
-        delay(1000);
-        cellspresent = bms.seriescells();
-        bmsstatus = Boot;
-        countcheck++;
-        if (debug != 0)
-        {
-          Serial.print("Countcheck. Cells Present = ");
-          Serial.println(cellspresent);
-        }
-        } else {
-        if (debug != 0)
-        {
+        if (debug != 0) {
           SERIALCONSOLE.println("  ");
           SERIALCONSOLE.print("   !!! Series Cells Fault !!!");
           SERIALCONSOLE.println("  ");
         }
         bmsstatus = Error;
         ErrorReason = 3;
-        }
       }
     }
 

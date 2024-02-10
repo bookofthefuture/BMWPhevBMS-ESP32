@@ -15,6 +15,7 @@ extern bool chargeEnabled();
 extern int chargecurrent;
 extern void resetISACounters();
 extern float currentact;
+extern int balancecells;
 
 #define Boot 0
 #define Ready 1
@@ -95,6 +96,7 @@ void BMSWebServer::setup()
     json["soc"] = SOC;
     json["capacity.val"] = settings.CAP;
     json["current.val"] = currentact;
+    json["balanceActive"] = balancecells;
     
     if (bmsstatus == Boot) {
       json["status"] = "Boot";
