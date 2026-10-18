@@ -78,7 +78,7 @@ jobs:
           cat > dist/FLASHING.txt <<TXT
           ${NAME}
 
-          ${NAME}-firmware.bin  Application only. Flash at 0x10000. Leaves the web files alone.
+          ${NAME}-firmware.bin  Application only. Flash at 0x10000, or upload it under Update > Firmware update on the BMS web page. Leaves the web files alone.
           ${NAME}-spiffs.bin    Web UI files only. Flash at ${SPIFFS_OFFSET}. Replaces anything stored in SPIFFS (e.g. wifi.html).
           ${NAME}-full.bin      Bootloader + partitions + app + web UI. Flash at 0x0 on a blank or existing board.
 

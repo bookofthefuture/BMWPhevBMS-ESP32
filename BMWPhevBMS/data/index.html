@@ -84,17 +84,27 @@
 </div>
 
 <p><a href="/wifi">Wifi Settings</a>
-<p><a href="#" onclick="toggleHidden('update')">Upload Update</a>
+<p><a href="#" onclick="toggleHidden('update')">Update</a>
 <p><a href="/settings.html">Settings</a>
 <p><a href="/voltages.html">Voltages</a>
 
 <div id="update" class="hidden">
-	<h2 id="update">Update</h2>
-	<p>Upload any files for updating this web interface.</p>
+	<h2>Firmware update</h2>
+	<p>Upload the <code>*-firmware.bin</code> file from a release. The BMS restarts when the upload finishes, and only accepts an
+	update while it is idle (not charging or driving).</p>
+	<form id="firmwareform" enctype="multipart/form-data">
+		<input id="firmwarefile" name="firmwarefile" type="file" accept=".bin" />
+		<input type="button" onclick="uploadFirmware();" value="Update firmware" />
+	</form>
+
+	<h2>Web files</h2>
+	<p>Upload individual files for updating this web interface.</p>
 	<form id="uploadform" enctype="multipart/form-data" action="edit" method="POST">
-		<input id="updatefile" name="updatefile" type="file" onchange="fileSelected();" />
+		<input id="updatefile" name="updatefile" type="file" />
 		<input type="button" onclick="uploadFile();" value="Upload" />
 	</form>
+
+	<p id="updatestatus"></p>
 </div>
 
 

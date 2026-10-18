@@ -199,30 +199,66 @@ function onMessage(json) {
 	};
  }
 
- function fileSelected()
-{
+function setUpdateStatus(text) {
+	document.getElementById("updatestatus").textContent = text;
 }
 
-/** @brief uploads file to web server, if bin-file uploaded, starts a firmware upgrade */
-function uploadFile() 
+/** @brief uploads a firmware image to /update; the BMS restarts itself on success */
+function uploadFirmware()
 {
-	var xmlhttp = new XMLHttpRequest();
-	var form = document.getElementById('uploadform');
-	
-	if (form.getFormData)
-		var fd = form.getFormData();
-	else
-		var fd = new FormData(form);
-	var file = document.getElementById('updatefile').files[0].name;
+	var input = document.getElementById('firmwarefile');
+	if (!input.files.length) {
+		setUpdateStatus("Choose a firmware .bin file first");
+		return;
+	}
+	var file = input.files[0];
+	if (!confirm("Update the BMS firmware with " + file.name + "?\nThe BMS will restart.")) {
+		return;
+	}
 
-	xmlhttp.onload = function() 
-	{
-		document.getElementById("bar").innerHTML = "<p>Upload complete</p>";
-		if (file.endsWith(".hex"))
-		{
-			runUpdate(-1, "/" + file);
+	var fd = new FormData();
+	fd.append("firmware", file, file.name);
+	var xhr = new XMLHttpRequest();
+
+	xhr.upload.onprogress = function(e) {
+		if (e.lengthComputable) {
+			setUpdateStatus("Uploading " + Math.round(100 * e.loaded / e.total) + "%");
+		}
+	};
+	xhr.onload = function() {
+		if (xhr.status >= 200 && xhr.status < 300) {
+			setUpdateStatus("Update complete, restarting. Reloading in 20 seconds");
+			setTimeout(function() { location.reload(); }, 20000);
 		} else {
-			setTimeout(function() { document.getElementById("bar").innerHTML = "" }, 5000);
+			setUpdateStatus("Update failed: " + xhr.responseText);
+		}
+	};
+	xhr.onerror = function() {
+		setUpdateStatus("Update failed: connection lost");
+	};
+
+	setUpdateStatus("Uploading 0%");
+	xhr.open("POST", "/update");
+	xhr.send(fd);
+}
+
+/** @brief uploads a web interface file to the BMS (SPIFFS) */
+function uploadFile()
+{
+	var input = document.getElementById('updatefile');
+	if (!input.files.length) {
+		setUpdateStatus("Choose a file first");
+		return;
+	}
+	var xmlhttp = new XMLHttpRequest();
+	var fd = new FormData(document.getElementById('uploadform'));
+
+	xmlhttp.onload = function()
+	{
+		if (xmlhttp.status >= 200 && xmlhttp.status < 400) {
+			setUpdateStatus("Upload complete");
+		} else {
+			setUpdateStatus("Upload failed: " + xmlhttp.responseText);
 		}
 	}
 
