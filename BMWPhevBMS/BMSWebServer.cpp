@@ -1,6 +1,7 @@
 #include "BMSWebServer.h"
 #include "SPIFFS.h"
 #include <EEPROM.h>
+#include <Update.h>
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
@@ -24,6 +25,22 @@ extern int balancecells;
 #define Precharge 4
 #define RapidCharge 5
 #define Error 6
+
+// Over-the-air firmware update state, shared between the upload and completion callbacks
+static String otaError;
+
+// ESP32 app images start with magic 0xE9 and carry the chip id (0 = ESP32) at bytes 12-13, followed by
+// the app descriptor (magic 0xABCD5432, little endian) at byte 32. The descriptor tells app images apart
+// from bootloader images, and this also rejects the -full.bin and -spiffs.bin release files.
+static bool validAppImage(const uint8_t *data, size_t len) {
+  return len >= 36 && data[0] == 0xE9 && data[12] == 0x00 && data[13] == 0x00
+         && data[32] == 0x32 && data[33] == 0x54 && data[34] == 0xCD && data[35] == 0xAB;
+}
+
+// Writing flash while charging or driving could stall CAN handling, so only update when idle
+static bool otaAllowed() {
+  return bmsstatus == Boot || bmsstatus == Ready || bmsstatus == Error;
+}
 
 BMSWebServer::BMSWebServer(EEPROMSettings& s, BMSModuleManager& b) : settings{ s }, bms { b } {
 }
@@ -202,30 +219,83 @@ void BMSWebServer::setup()
     });
 
 
+  server.on("/update",
+            HTTP_POST,
+  [](AsyncWebServerRequest * request) {
+    if (otaError.length() > 0) {
+      request->send(otaError.startsWith("Busy") ? 409 : 400, "text/plain", otaError);
+    } else {
+      AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Update complete, restarting");
+      response->addHeader("Connection", "close");
+      request->onDisconnect([]() {
+        Serial.println("Firmware updated, restarting");
+        ESP.restart();
+      });
+      request->send(response);
+    }
+  },
+  [](AsyncWebServerRequest * request, const String & filename, size_t index, uint8_t *data, size_t len, bool final) {
+    if (!index) {
+      otaError = "";
+      if (Update.isRunning()) {
+        Update.abort(); // an earlier upload was interrupted
+      }
+      if (!otaAllowed()) {
+        otaError = "Busy: the BMS is not idle (charging or driving)";
+      } else if (!filename.endsWith(".bin")) {
+        otaError = "Not a .bin file";
+      } else if (!validAppImage(data, len)) {
+        otaError = "Not an ESP32 firmware image. Use the *-firmware.bin file";
+      } else if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+        otaError = Update.errorString();
+      } else {
+        Serial.print("Firmware update started: ");
+        Serial.println(filename);
+      }
+    }
+
+    if (otaError.length() > 0) {
+      return; // already failed, ignore the remaining chunks
+    }
+
+    if (len && Update.write(data, len) != len) {
+      otaError = Update.errorString();
+      Update.abort();
+      return;
+    }
+
+    if (final && !Update.end(true)) {
+      otaError = Update.errorString();
+    }
+  }
+
+           );
+
+  // Uploads a file into SPIFFS (web UI files). Firmware goes to /update instead.
   server.on("/edit",
             HTTP_POST,
   [](AsyncWebServerRequest * request) {},
   [&](AsyncWebServerRequest * request, const String & filename, size_t index, uint8_t *data, size_t len, bool final) {
-    if (!index) {
+    bool isBin = filename.endsWith(".bin");
+
+    if (!index && !isBin) {
       // open the file on first call and store the file handle in the request object
       request->_tempFile = SPIFFS.open("/" + filename, "w");
 
     }
 
-    if (len) {
+    if (len && !isBin) {
       // stream the incoming chunk to the opened file
       request->_tempFile.write(data, len);
     }
 
     if (final) {
+      if (isBin) {
+        request->send(400, "text/plain", "Firmware (.bin) files go through Firmware Update");
+        return;
+      }
       // close the file handle as the upload is now done
       request->_tempFile.close();
-
-      if (filename.substring(filename.lastIndexOf(".")).equals("bin")) {
-        Serial.println("Firmware uploaded, restarting");
-        request->send(200, "application/json", "restarting");
-        ESP.restart();
-      }
       request->redirect("/");
     }
   }
