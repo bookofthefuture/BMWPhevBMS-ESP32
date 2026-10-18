@@ -158,7 +158,7 @@ bool inverterInDrive = false;
 bool rapidCharging = false;
 
 //ZombieVerter state frame, see docs/zombieverter-bms-state-frame.md
-#define ZV_STATE_CAN_ID 0x3A0
+#define ZV_STATE_CAN_ID 0x3A1
 #define ZV_TIMEOUT 3000 //ms without a frame before falling back to the AC_PRESENT pin logic
 #define ZV_OFF 0
 #define ZV_RUN 1

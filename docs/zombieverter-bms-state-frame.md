@@ -10,7 +10,7 @@ The frame must NOT rely on the user-configurable CanMap (`canMap->SendAll()`): t
 (`CanMapCan`), and the user already uses it on the car CAN.
 
 ## Frame spec
-- CAN ID: `0x3A0` (11-bit standard), DLC 8, 500 kbit/s (same as existing buses)
+- CAN ID: `0x3A1` (11-bit standard), DLC 8, 500 kbit/s (same as existing buses)
 - Period: 100 ms
 
 | Byte | Content | Source |
@@ -25,25 +25,27 @@ The frame must NOT rely on the user-configurable CanMap (`canMap->SendAll()`): t
 - Bus selection: `canInterface[Param::GetInt(Param::BMSCan)]` (array of `CanHardware*`, index 0 = CAN1, 1 = CAN2; set up
   near `canInterface[0] = &c;` in `main`). Check how other modules pick their bus, e.g. grep `Param::BMSCan` / `ChargerCan`
   and mimic that. The `BMSCan` default is 1 (CAN2).
-- Send with `can->Send(0x3A0, (uint32_t *)bytes, 8)` as used elsewhere (e.g. `src/Can_OI.cpp`, `src/NissLeafMng.cpp`).
+- Send with `can->Send(0x3A1, (uint32_t *)bytes, 8)` as used elsewhere (e.g. `src/Can_OI.cpp`, `src/NissLeafMng.cpp`).
   Build the 8 bytes in a `uint8_t bytes[8]` and check how the existing callers cast it (word order on this STM32 library).
 - Make sure the frame is sent regardless of which BMS / charger / inverter classes are selected (i.e. do not put it inside
   a vehicle/BMS-specific class that may be `NoBMS`/`notused`).
 
 ## Constraints / things to check
-- Confirm 0x3A0 isn't already used by any module in `src/` (grep `0x3A0`, and the 0x3A0-0x3AF range, because the BMS accepts
-  that whole range through its hardware filter).
+- Confirm 0x3A1 isn't already used by any module in `src/` (grep `0x3A1`). The BMS accepts exactly this ID
+  through an exact-match hardware filter.
 - Do not change behaviour of existing CAN traffic. Don't add a new parameter unless clearly necessary (if you do, add it to
   `param_prj.h` with a fresh unique id, and mention it).
 - Keep code style consistent with surrounding code (formatting, comments).
 - Build with the repo's Makefile (`make`) if the toolchain is available; otherwise say that it was not compiled.
 
 ## Acceptance
-- A CAN sniffer on the `BMSCan` bus sees `0x3A0` every ~100 ms with byte0 following `opmode` (Off at boot, Charge while
+- A CAN sniffer on the `BMSCan` bus sees `0x3A1` every ~100 ms with byte0 following `opmode` (Off at boot, Charge while
   charging on AC, Run when driving).
 - No change to any other frame.
 - Report: files changed, the exact send code, and whether it compiled.
 
 ## BMS side (already done, for context only)
-`BMWPhevBMS.ino` listens for 0x3A0 (`ZV_STATE_CAN_ID`). Valid for 3 s after the last frame; in that time Charge(4) => BMS
+`BMWPhevBMS.ino` listens for 0x3A1 (`ZV_STATE_CAN_ID`). Valid for 3 s after the last frame; in that time Charge(4) => BMS
 Charge state, Run(1) => Drive, otherwise Ready. After 3 s without a frame it falls back to its old AC_PRESENT pin logic.
+
+Note: 0x3A0 is already used by src/i3LIM.cpp (vehicle condition toward the DC fast-charge port), so the state frame uses 0x3A1.
