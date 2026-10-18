@@ -159,7 +159,7 @@ bool rapidCharging = false;
 
 //ZombieVerter state frame, see docs/zombieverter-bms-state-frame.md
 #define ZV_STATE_CAN_ID 0x3A0
-#define ZV_TIMEOUT 3000 //ms without a frame before falling back to the AC_PRESENT pin / 0x01 logic
+#define ZV_TIMEOUT 3000 //ms without a frame before falling back to the AC_PRESENT pin logic
 #define ZV_OFF 0
 #define ZV_RUN 1
 #define ZV_PRECHARGE 2
@@ -276,12 +276,6 @@ static void receivedFiltered (const CANMessage & inMsg) {
     } else if(inMsg.id == 0x528) {
         long wh = inMsg.data[2] + (inMsg.data[3] << 8) + (inMsg.data[4] << 16) + (inMsg.data[5] << 24);
         kilowatthours = wh/1000.0f;
-    }
-    //canio
-    else if (inMsg.id == 0x01) {
-      if (!zombieActive()) {
-        inverterInDrive = inMsg.data[1] & 0x80 == 0x80;
-      }
     }
     //chademo
     else if (inMsg.id == 0x354) {
@@ -443,13 +437,12 @@ void setup()
   const ACAN2515Mask rxm1 = standard2515Mask(0x7F0, 0, 0) ; // For filter #2 to #
   const ACAN2515AcceptanceFilter filters [] = {
     {standard2515Filter(ZV_STATE_CAN_ID, 0, 0), receivedFiltered},
-    {standard2515Filter(0x01, 0, 0), receivedFiltered},
-    {standard2515Filter(0x520, 0, 0), receivedFiltered},
-    {standard2515Filter(0x380, 0, 0), receivedFiltered},
-    {standard2515Filter(0x354, 0, 0), receivedFiltered}
+    {standard2515Filter(0x354, 0, 0), receivedFiltered}, // exact match (filters #0 and #1 use rxm0)
+    {standard2515Filter(0x520, 0, 0), receivedFiltered}, // filters #2 onwards use rxm1: 0x520-0x52F
+    {standard2515Filter(0x380, 0, 0), receivedFiltered}  // 0x380-0x38F
   };
 
-  const uint16_t errorCode = bmscan.can1->begin (cansettings, [] { bmscan.can1->isr () ; }, rxm0, rxm1, filters, 5) ;
+  const uint16_t errorCode = bmscan.can1->begin (cansettings, [] { bmscan.can1->isr () ; }, rxm0, rxm1, filters, 4) ;
   bmscan.begin(500000, settings.chargerCanIndex);
   bmscan.begin(500000, settings.veCanIndex);
 
