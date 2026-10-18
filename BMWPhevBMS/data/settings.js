@@ -28,16 +28,14 @@ function postSettings() {
         // print JSON response
         if (xhr.status >= 200 && xhr.status < 300) {
             // parse JSON
-            const response = JSON.parse(xhr.responseText);
-            this.settings = response
-            loadSettings(response)
+            const response = xhr.responseText
         }
     };
 
     xhr.open('POST', '/config');
     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     xhr.send(JSON.stringify(this.settings))
-    xhr.send()
+ 
 }
 
 function save() {
