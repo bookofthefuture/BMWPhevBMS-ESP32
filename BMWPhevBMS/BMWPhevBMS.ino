@@ -170,6 +170,9 @@ uint8_t zvOpmode = ZV_OFF;
 uint8_t zvChargeType = 0; //0 off, 1 AC, 2 DCFC
 unsigned long zvLastRec = 0;
 bool zvSeen = false;
+
+unsigned long rapidChargingLastRec = 0;
+#define RAPID_CHARGING_TIMEOUT 3000 //ms without a chademo frame before rapid charging is considered over
 unsigned long looptime, looptime1, looptime2, UnderTime, cleartime, chargertimer, balancetimer = 0; //ms
 int currentsense = 1;
 int sensor = 1;
@@ -281,8 +284,9 @@ static void receivedFiltered (const CANMessage & inMsg) {
       }
     }
     //chademo
-    else if (inMsg.id == 0x354 && inMsg.data[0] == 0x01) {
-      rapidCharging = true;
+    else if (inMsg.id == 0x354) {
+      rapidCharging = inMsg.data[0] == 0x01;
+      rapidChargingLastRec = millis();
     }
     else if (inMsg.id == 0x52A) { //param set value
       if (inMsg.data[0] == 0x01) { //set ac current max
@@ -496,6 +500,10 @@ void loop()
     inverterInDrive = (zvOpmode == ZV_RUN);
   }
 
+  if (rapidCharging && (millis() - rapidChargingLastRec) > RAPID_CHARGING_TIMEOUT) {
+    rapidCharging = false;
+  }
+
   switch (bmsstatus)
   {
     case (Boot):
@@ -625,6 +633,10 @@ void loop()
       }
       break;
     case (RapidCharge):
+      Discharge = 0;
+      if (!rapidCharging) {
+        bmsstatus = Ready;
+      }
       break;
     case (Error):
       Discharge = 0;
