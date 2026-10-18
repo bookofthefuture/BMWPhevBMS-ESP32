@@ -1,0 +1,110 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Board and toolchain. Defaults to a generic ESP32 dev board with the default 4MB partition table
+  # (app 0x10000, SPIFFS 0x290000 / 0x160000). If the hardware or partition scheme differs, change
+  # FQBN here and the SPIFFS_* values below to match.
+  FQBN: esp32:esp32:esp32
+  ESP32_CORE: 2.0.17
+  SPIFFS_OFFSET: '0x290000'
+  SPIFFS_SIZE: '0x160000'
+  # me-no-dev's async libs are not in the Library Manager, so they are pinned by commit.
+  ESPASYNCWEBSERVER_REF: ad3741d159f9cfd50c567e81b67f3bef1dc6d89f
+  ASYNCTCP_REF: ef448a8a1dffe4ec1b72326dd5a26211ff227b49
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: 1.1.1
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.arduino15
+          key: arduino15-${{ env.ESP32_CORE }}-${{ hashFiles('.github/workflows/build.yml') }}
+
+      - name: Install core and libraries
+        run: |
+          pip install pyserial
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32@${ESP32_CORE} --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli lib install "ACAN2515@2.1.5" "ACAN_ESP32@3.0.3" "ArduinoJson@6.21.5"
+          mkdir -p ~/Arduino/libraries
+          git clone https://github.com/me-no-dev/ESPAsyncWebServer.git ~/Arduino/libraries/ESPAsyncWebServer
+          git -C ~/Arduino/libraries/ESPAsyncWebServer checkout "$ESPASYNCWEBSERVER_REF"
+          git clone https://github.com/me-no-dev/AsyncTCP.git ~/Arduino/libraries/AsyncTCP
+          git -C ~/Arduino/libraries/AsyncTCP checkout "$ASYNCTCP_REF"
+
+      - name: Compile
+        run: arduino-cli compile --fqbn "$FQBN" --warnings default --output-dir out BMWPhevBMS
+
+      - name: Package
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then VER="${GITHUB_REF_NAME}"; else VER="${GITHUB_SHA::7}"; fi
+          NAME="BMWPhevBMS-${VER}"
+          CORE=~/.arduino15/packages/esp32
+          ESPTOOL=$(ls -d $CORE/tools/esptool_py/*/ | head -1)esptool.py
+          MKSPIFFS=$(ls -d $CORE/tools/mkspiffs/*/ | head -1)mkspiffs
+          BOOT_APP0=$(ls -d $CORE/hardware/esp32/*/ | head -1)tools/partitions/boot_app0.bin
+
+          mkdir -p dist stage
+          cp -r BMWPhevBMS/data/. stage/
+          rm -f stage/desktop.ini stage/.exclude.files
+          "$MKSPIFFS" -c stage -b 4096 -p 256 -s "$SPIFFS_SIZE" "dist/${NAME}-spiffs.bin"
+
+          cp out/BMWPhevBMS.ino.bin "dist/${NAME}-firmware.bin"
+          python3 "$ESPTOOL" --chip esp32 merge_bin -o "dist/${NAME}-full.bin" \
+            --flash_mode dio --flash_freq keep --flash_size 4MB \
+            0x1000 out/BMWPhevBMS.ino.bootloader.bin \
+            0x8000 out/BMWPhevBMS.ino.partitions.bin \
+            0xe000 "$BOOT_APP0" \
+            0x10000 out/BMWPhevBMS.ino.bin \
+            "$SPIFFS_OFFSET" "dist/${NAME}-spiffs.bin"
+
+          cat > dist/FLASHING.txt <<TXT
+          ${NAME}
+
+          ${NAME}-firmware.bin  Application only. Flash at 0x10000. Leaves the web files alone.
+          ${NAME}-spiffs.bin    Web UI files only. Flash at ${SPIFFS_OFFSET}. Replaces anything stored in SPIFFS (e.g. wifi.html).
+          ${NAME}-full.bin      Bootloader + partitions + app + web UI. Flash at 0x0 on a blank or existing board.
+
+          esptool.py --chip esp32 --port <PORT> write_flash 0x10000 ${NAME}-firmware.bin
+          esptool.py --chip esp32 --port <PORT> write_flash 0x0 ${NAME}-full.bin
+          TXT
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAME }}
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
