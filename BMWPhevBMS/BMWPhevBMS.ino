@@ -2235,74 +2235,74 @@ void sendcommand()
 {
 
   ///////module id cycling/////////
-for (int mG = 0; mG < 3; mG++) { //change this to increase or decrease burst sending of module requests.
-  if (nextmes == 6) {
-    mescycle++;
-    nextmes = 0;
-    if (testcycle < 4) {
-      testcycle++;
-    }
+  for (int mG = 0; mG < 3; mG++) { //change this to increase or decrease burst sending of module requests.
+    if (nextmes == 6) {
+      mescycle++;
+      nextmes = 0;
+      if (testcycle < 4) {
+        testcycle++;
+      }
 
-    if (mescycle == 0xF) {
-      mescycle = 0;
+      if (mescycle == 0xF) {
+        mescycle = 0;
 
-      if (balancetimer < millis()) {
-        balancepauze = 1;
-        if (debug == 1) {
-          Serial.println();
-          Serial.println("Reset Balance Timer");
-          Serial.println();
+        if (balancetimer < millis()) {
+          balancepauze = 1;
+          if (debug == 1) {
+            Serial.println();
+            Serial.println("Reset Balance Timer");
+            Serial.println();
+          }
+          balancetimer = millis() + ((settings.balanceDuty + 60) * 1000);
+        } else {
+          balancepauze = 0;
         }
-        balancetimer = millis() + ((settings.balanceDuty + 60) * 1000);
-      } else {
-        balancepauze = 0;
       }
     }
-  }
-  if (balancepauze == 1) {
-    balancecells = 0;
-  }
-
-
-  msg.id = 0x080 | (nextmes);
-  msg.len = 8;
-  if (balancecells == 1) {
-    msg.buf[0] = lowByte((uint16_t((bms.getLowCellVolt()) * 1000) + 5));
-    msg.buf[1] = highByte((uint16_t((bms.getLowCellVolt()) * 1000) + 5));
-  } else {
-    msg.buf[0] = 0xC7;
-    msg.buf[1] = 0x10;
-  }
-  msg.buf[2] = 0x00;  //balancing bits
-  msg.buf[3] = 0x00;  //balancing bits
-   if (testcycle < 3) {
-    msg.buf[4] = 0x20;
-    msg.buf[5] = 0x00;
-  } else {
-
-    if (balancecells == 1) {
-      msg.buf[4] = 0x48;
-    } else {
-      msg.buf[4] = 0x40;
+    if (balancepauze == 1) {
+      balancecells = 0;
     }
-    msg.buf[5] = 0x01;
+
+
+    msg.id = 0x080 | (nextmes);
+    msg.len = 8;
+    if (balancecells == 1) {
+      msg.buf[0] = lowByte((uint16_t((bms.getLowCellVolt()) * 1000) + 5));
+      msg.buf[1] = highByte((uint16_t((bms.getLowCellVolt()) * 1000) + 5));
+    } else {
+      msg.buf[0] = 0xC7;
+      msg.buf[1] = 0x10;
+    }
+    msg.buf[2] = 0x00;  //balancing bits
+    msg.buf[3] = 0x00;  //balancing bits
+     if (testcycle < 3) {
+      msg.buf[4] = 0x20;
+      msg.buf[5] = 0x00;
+    } else {
+
+      if (balancecells == 1) {
+        msg.buf[4] = 0x48;
+      } else {
+        msg.buf[4] = 0x40;
+      }
+      msg.buf[5] = 0x01;
+    }
+
+    msg.buf[6] = mescycle << 4;
+    if (testcycle == 2) {
+      msg.buf[6] = msg.buf[6] + 0x04;
+    }
+
+    msg.buf[7] = getcheck(msg, nextmes);
+
+    delay(2);
+    bmscan.write(msg, DEFAULT_CAN_INTERFACE_INDEX);
+    nextmes++;
+
+    if (bms.checkstatus() == true) {
+      resetbalancedebug();
+    }
   }
-
-  msg.buf[6] = mescycle << 4;
-  if (testcycle == 2) {
-    msg.buf[6] = msg.buf[6] + 0x04;
-  }
-
-  msg.buf[7] = getcheck(msg, nextmes);
-
-  delay(2);
-  bmscan.write(msg, DEFAULT_CAN_INTERFACE_INDEX);
-  nextmes++;
-
-  if (bms.checkstatus() == true) {
-    resetbalancedebug();
-  }
-}
 }
 
 void resetwdog()
