@@ -5,7 +5,6 @@ Compiled from the BMS source (`BMWPhevBMS.ino`, `BMSModuleManager.cpp`) and Zomb
 
 | ID | Dir (from BMS) | Producer | Content |
 |----|---------------|----------|---------|
-| 0x01 | RX | ZombieVerter canio / inverter | Drive flag in byte 1 (BMS currently reads `data[1] & 0x80 == 0x80`, which C parses as `data[1] & 1`; **bug, verify**) |
 | 0x080-0x086 | TX | BMS | BMW PHEV CSC (cell module) commands incl. balancing; byte 7 is CRC8 |
 | 0x100-0x17F | RX | CSC modules | Cell voltages (`BMSModuleManager::decodecan`) |
 | 0x180-0x18F | RX | CSC modules | Cell temperatures (`decodetemp`) |
@@ -19,3 +18,5 @@ Compiled from the BMS source (`BMWPhevBMS.ino`, `BMSModuleManager.cpp`) and Zomb
 | 0x52A | RX | ZombieVerter/other | param set: byte 0 == 1 => max AC charge current = byte 1 * 10 |
 
 Not yet documented: the car (vehicle) CAN, which is a separate bus.
+
+Removed: 0x01 (canio from the old Prius Gen 3 board), no longer sent on the car.
