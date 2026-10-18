@@ -158,6 +158,20 @@ unsigned long inverterLastRec;
 byte inverterStatus;
 bool inverterInDrive = false;
 bool rapidCharging = false;
+
+//ZombieVerter state frame, see docs/zombieverter-bms-state-frame.md
+#define ZV_STATE_CAN_ID 0x3A0
+#define ZV_TIMEOUT 3000 //ms without a frame before falling back to the AC_PRESENT pin / 0x01 / 0x377 logic
+#define ZV_OFF 0
+#define ZV_RUN 1
+#define ZV_PRECHARGE 2
+#define ZV_PCHFAIL 3
+#define ZV_CHARGE 4
+#define ZV_PREHEAT 5
+uint8_t zvOpmode = ZV_OFF;
+uint8_t zvChargeType = 0; //0 off, 1 AC, 2 DCFC
+unsigned long zvLastRec = 0;
+bool zvSeen = false;
 unsigned long looptime, looptime1, looptime2, UnderTime, cleartime, chargertimer, balancetimer = 0; //ms
 int currentsense = 1;
 int sensor = 1;
@@ -213,6 +227,7 @@ uint8_t checksum;
 const uint8_t finalxor [12] = {0xCF, 0xF5, 0xBB, 0x81, 0x27, 0x1D, 0x53, 0x69, 0x02, 0x38, 0x76, 0x4C};
 
 void getcurrent();
+bool zombieActive();
 static void receivedFiltered (const CANMessage & inMsg) {
     if (candebug == 1) {
           Serial.print(millis());
@@ -226,7 +241,12 @@ static void receivedFiltered (const CANMessage & inMsg) {
           Serial.println(" Filtered Can ");
     }
 
-    if (inMsg.id == 0x389) {
+    if (inMsg.id == ZV_STATE_CAN_ID) {
+      zvOpmode = inMsg.data[0];
+      zvChargeType = inMsg.data[1];
+      zvLastRec = millis();
+      zvSeen = true;
+    } else if (inMsg.id == 0x389) {
       outlander_charger_reported_voltage = inMsg.data[0] * 2;
       outlander_charger_reported_current = inMsg.data[2];
       outlander_charger_reported_temp1 = inMsg.data[3] - 40;
@@ -261,7 +281,9 @@ static void receivedFiltered (const CANMessage & inMsg) {
     }
     //canio
     else if (inMsg.id == 0x01) {
-      inverterInDrive = inMsg.data[1] & 0x80 == 0x80;
+      if (!zombieActive()) {
+        inverterInDrive = inMsg.data[1] & 0x80 == 0x80;
+      }
     }
     //chademo
     else if (inMsg.id == 0x354 && inMsg.data[0] == 0x01) {
@@ -278,14 +300,30 @@ static void receivedFiltered (const CANMessage & inMsg) {
   
 }
 
+//true while the ZombieVerter is sending its opmode, so its state takes priority over the discrete inputs
+bool zombieActive() {
+  return zvSeen && (millis() - zvLastRec) < ZV_TIMEOUT;
+}
+
 bool chargeEnabled() {
-  return digitalRead(AC_PRESENT) == LOW || chargeOverride == 1;
+  if (chargeOverride == 1) {
+    return true;
+  }
+  if (zombieActive()) {
+    return zvOpmode == ZV_CHARGE;
+  }
+  return digitalRead(AC_PRESENT) == LOW;
   //Serial.println("AC Present");
 }
 
 bool inverterControlledContactorsStatus() {
   // if inverter in RUN mode
   if (inverterStatus == 0x22) {
+    return true;
+  }
+
+  // ZombieVerter only reports these modes once its contactors are closed
+  if (zombieActive() && (zvOpmode == ZV_RUN || zvOpmode == ZV_CHARGE || zvOpmode == ZV_PREHEAT)) {
     return true;
   }
 
@@ -413,10 +451,11 @@ void setup()
     {standard2515Filter(0x01, 0, 0), receivedFiltered},
     {standard2515Filter(0x520, 0, 0), receivedFiltered},
     {standard2515Filter(0x380, 0, 0), receivedFiltered},
-    {standard2515Filter(0x354, 0, 0), receivedFiltered}
+    {standard2515Filter(0x354, 0, 0), receivedFiltered},
+    {standard2515Filter(ZV_STATE_CAN_ID, 0, 0), receivedFiltered} // filter #5 uses rxm1, so 0x3A0-0x3AF
   };
 
-  const uint16_t errorCode = bmscan.can1->begin (cansettings, [] { bmscan.can1->isr () ; }, rxm0, rxm1, filters, 5) ;
+  const uint16_t errorCode = bmscan.can1->begin (cansettings, [] { bmscan.can1->isr () ; }, rxm0, rxm1, filters, 6) ;
   bmscan.begin(500000, settings.chargerCanIndex);
   bmscan.begin(500000, settings.veCanIndex);
 
@@ -461,6 +500,10 @@ void loop()
   if (Serial.available() > 0)
   {
     menu();
+  }
+
+  if (zombieActive()) {
+    inverterInDrive = (zvOpmode == ZV_RUN);
   }
 
   switch (bmsstatus)
@@ -810,6 +853,10 @@ void printbmsstat()
       break;
   }
   
+  if (zombieActive()) {
+    SERIALCONSOLE.print(" ZV opmode:");
+    SERIALCONSOLE.print(zvOpmode);
+  }
   SERIALCONSOLE.print("  ");
   if (chargeEnabled())
   {
